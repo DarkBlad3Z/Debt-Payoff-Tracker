@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#152022" media="(prefers-color-scheme: dark)">
+<title>Debt Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%234e806e'/%3E%3Cpath d='M21 33.5l7.5 7.5L44 25' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --bg-glow: #dde9e2;
+    --surface: rgba(255, 255, 255, 0.66);
+    --surface-solid: #fbfaf7;
+    --text: #2b3737;
+    --muted: #5f6c69;
+    --faint: #a3adaa;
+    --line: #e2ddd2;
+    --accent: #4e806e;
+    --accent-strong: #3d6b5a;
+    --accent-light: #8dbba8;
+    --accent-soft: #d9e8e0;
+    --accent-ink: #ffffff;
+    --warn: #a85f53;
+    --warn-strong: #934f44;
+    --warn-ink: #ffffff;
+    --radius: 18px;
+    --shadow: 0 1px 2px rgba(38, 48, 46, 0.04), 0 10px 30px rgba(38, 48, 46, 0.07);
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-num: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #152022;
+      --bg-glow: #1d3330;
+      --surface: rgba(255, 255, 255, 0.045);
+      --surface-solid: #1b2829;
+      --text: #e5ecea;
+      --muted: #93a29e;
+      --faint: #5f6f6c;
+      --line: #283738;
+      --accent: #86bfa9;
+      --accent-strong: #a3d3c0;
+      --accent-light: #5f9c86;
+      --accent-soft: #213c36;
+      --accent-ink: #0f1f1b;
+      --warn: #e09d91;
+      --warn-strong: #eab2a8;
+      --warn-ink: #2a1511;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text);
+    background:
+      radial-gradient(1100px 560px at 50% -10%, var(--bg-glow), transparent 70%) no-repeat,
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: clamp(36px, 9vh, 96px) 22px calc(56px + env(safe-area-inset-bottom));
+  }
+
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .eyebrow {
+    margin: 0 0 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- The big number ---------- */
+  .hero { text-align: center; }
+
+  .big {
+    margin: 0;
+    font-family: var(--font-num);
+    font-size: clamp(44px, 15vw, 108px); /* refined by fitBig() */
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+    white-space: nowrap;
+    color: var(--text);
+    transition: color 0.8s ease;
+  }
+  .is-done .big { color: var(--accent-strong); }
+  .big.bump { animation: bump 0.5s cubic-bezier(0.3, 0.7, 0.3, 1); }
+  .big.pop  { animation: pop 1s cubic-bezier(0.2, 0.9, 0.25, 1.15); }
+  @keyframes bump { 35% { transform: scale(0.965); } }
+  @keyframes pop  { 30% { transform: scale(1.07); } }
+
+  .progress {
+    max-width: 340px;
+    height: 6px;
+    margin: 22px auto 10px;
+    border-radius: 99px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .bar {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent-light), var(--accent));
+    transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .progress-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Inputs & buttons ---------- */
+  .pay {
+    display: flex;
+    gap: 10px;
+    max-width: 440px;
+    margin: 44px auto 0;
+  }
+  .money { position: relative; flex: 1; min-width: 0; }
+  .money-sign {
+    position: absolute;
+    left: 16px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .money input {
+    width: 100%;
+    height: 52px;
+    padding: 0 16px 0 33px;
+    font: inherit;
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .money input::placeholder { color: var(--faint); }
+  .money input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .money input[aria-invalid="true"] { border-color: var(--warn); }
+
+  .btn {
+    height: 52px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 14px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--accent-ink);
+    background: var(--accent);
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  }
+  .btn:hover { background: var(--accent-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible,
+  .link:focus-visible,
+  .item-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .btn-quiet { color: var(--text); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .btn-quiet:hover { background: var(--surface); }
+  .btn-warn { color: var(--warn-ink); background: var(--warn); }
+  .btn-warn:hover { background: var(--warn-strong); }
+  .btn-small { height: 36px; padding: 0 14px; font-size: 14px; border-radius: 10px; }
+
+  .msg {
+    min-height: 21px;
+    margin: 12px 0 0;
+    font-size: 14px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .msg[data-kind="error"] { color: var(--warn); }
+  .msg[data-kind="ok"] { color: var(--accent-strong); }
+
+  /* ---------- Zero celebration card ---------- */
+  .done {
+    max-width: 440px;
+    margin: 40px auto 0;
+    padding: 26px 24px;
+    text-align: center;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .done:focus { outline: none; }
+  .done-title { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  .done-text { margin: 6px 0 20px; color: var(--muted); }
+  .done-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .done-actions .btn { height: 44px; }
+
+  /* ---------- Payment history ---------- */
+  .history { margin-top: 60px; }
+  .history-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0 48px 10px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .history-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .history-head h2:focus { outline: none; }
+  .count { font-size: 13px; color: var(--muted); }
+  .history-list { margin: 0; padding: 0; list-style: none; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 62px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .item-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 16px;
+  }
+  .item-amt { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent-strong); }
+  .item-when { font-size: 14px; color: var(--muted); }
+  .item-x {
+    flex: none;
+    width: 32px; height: 32px;
+    border: 0;
+    border-radius: 50%;
+    font: inherit;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s, background-color 0.2s;
+  }
+  .item:hover .item-x,
+  .item-x:focus-visible { opacity: 1; }
+  @media (hover: none) { .item-x { opacity: 0.7; } }
+  .item-x:hover { color: var(--warn); background: var(--surface); }
+  .item.flash { animation: flash 2s ease-out; }
+  @keyframes flash { from { background-color: var(--accent-soft); } }
+  .item.confirming { flex-wrap: wrap; justify-content: space-between; }
+  .item-q { font-size: 14px; }
+  .item-actions { display: flex; gap: 8px; }
+
+  .empty {
+    margin: 0;
+    padding: 28px 0 6px;
+    font-size: 14px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  /* ---------- Footer ---------- */
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 4px 10px;
+    margin-top: 44px;
+    font-size: 13px;
+    color: var(--faint);
+  }
+  .link {
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 6px;
+    font: inherit;
+    color: var(--muted);
+    background: none;
+    cursor: pointer;
+  }
+  .link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---------- First-run setup ---------- */
+  .setup { text-align: center; padding-top: 5vh; }
+  .setup-title {
+    max-width: 13em;
+    margin: 6px auto 0;
+    font-size: clamp(28px, 6vw, 40px);
+    font-weight: 650;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .setup .pay { margin-top: 32px; }
+  .fine { margin: 26px 0 0; font-size: 13px; color: var(--muted); }
+
+  .note {
+    max-width: 520px;
+    margin: 0 auto 32px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    text-align: center;
+    color: var(--text);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  /* ---------- Confetti ---------- */
+  .confetti {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    pointer-events: none;
+  }
+  .confetti.on { display: block; }
+
+  /* ---------- Dialogs ---------- */
+  dialog {
+    width: min(420px, calc(100vw - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--text);
+    background: var(--surface-solid);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  }
+  dialog::backdrop { background: rgba(18, 28, 26, 0.38); }
+  .dialog-body { padding: 24px; }
+  .dialog-body h3 { margin: 0; font-size: 19px; font-weight: 650; }
+  .dialog-text { margin: 6px 0 18px; font-size: 15px; color: var(--muted); }
+  .dialog-body .msg { text-align: left; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+  .dialog-actions .btn { height: 44px; }
+
+  /* ---------- Small screens & motion ---------- */
+  @media (max-width: 480px) {
+    .pay { flex-direction: column; }
+    .pay .btn { width: 100%; }
+    .history { margin-top: 48px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p id="storage-note" class="note" role="note" hidden>
+    This page can't save here, so your numbers will reset when you close it.
+    Open the file directly in Chrome, Safari, Edge or Firefox to keep your progress.
+  </p>
+
+  <noscript><p class="note">This tracker needs JavaScript turned on.</p></noscript>
+
+  <!-- First run: set the starting total -->
+  <section id="setup" class="setup" hidden aria-labelledby="setup-title">
+    <p class="eyebrow">Debt tracker</p>
+    <h1 id="setup-title" class="setup-title">How much do you owe in total?</h1>
+    <form id="setup-form" class="pay" novalidate autocomplete="off">
+      <label class="sr-only" for="setup-amount">Total amount owed</label>
+      <div class="money">
+        <span class="money-sign" aria-hidden="true">$</span>
+        <input id="setup-amount" type="text" inputmode="decimal" placeholder="0.00" enterkeyhint="go" aria-describedby="setup-msg">
+      </div>
+      <button type="submit" class="btn">Start tracking</button>
+    </form>
+    <p id="setup-msg" class="msg" role="status" aria-live="polite"></p>
+    <p class="fine">Everything stays in this browser. Nothing is sent anywhere.</p>
+  </section>
+
+  <!-- The tracker -->
+  <section id="tracker" hidden>
+    <h1 class="sr-only">Debt tracker</h1>
+
+    <header class="hero">
+      <p id="big-label" class="eyebrow">Left to pay</p>
+      <p id="big" class="big">$0.00</p>
+      <div id="progress" class="progress" role="progressbar" aria-label="Paid off so far" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="bar" class="bar"></div>
+      </div>
+      <p id="progress-text" class="progress-text"></p>
+    </header>
+
+    <form id="pay-form" class="pay" novalidate autocomplete="off">
+      <label class="sr-only" for="pay-amount">Payment amount</label>
+      <div class="money">
+        <span class="money-sign" aria-hidden="true">$</span>
+        <input id="pay-amount" type="text" inputmode="decimal" placeholder="0.00" enterkeyhint="done" aria-describedby="pay-msg">
+      </div>
+      <button type="submit" class="btn">Log payment</button>
+    </form>
+
+    <div id="done" class="done" tabindex="-1" hidden>
+      <p class="done-title">You did it.</p>
+      <p id="done-text" class="done-text"></p>
+      <div class="done-actions">
+        <button type="button" id="celebrate" class="btn">Celebrate again</button>
+        <button type="button" id="new-goal" class="btn btn-quiet">Start a new goal</button>
+      </div>
+    </div>
+
+    <p id="pay-msg" class="msg" role="status" aria-live="polite"></p>
+
+    <section class="history" aria-labelledby="history-title">
+      <div class="history-head">
+        <h2 id="history-title" tabindex="-1">Payments</h2>
+        <span id="history-count" class="count"></span>
+      </div>
+      <ol id="history" class="history-list"></ol>
+      <p id="history-empty" class="empty">No payments yet. Your first one will show up here.</p>
+    </section>
+
+    <footer class="foot">
+      <button type="button" id="sound-toggle" class="link">Sound: on</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" id="edit-start" class="link">Edit starting amount</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" id="reset" class="link">Start over</button>
+    </footer>
+  </section>
+
+  <p id="sr-status" class="sr-only" role="status" aria-live="polite"></p>
+</main>
+
+<canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+<dialog id="edit-dialog" aria-labelledby="edit-title">
+  <form id="edit-form" class="dialog-body" novalidate autocomplete="off">
+    <h3 id="edit-title">Edit starting amount</h3>
+    <p class="dialog-text">Fix a typo or add interest. Your payment history stays as it is.</p>
+    <label class="sr-only" for="edit-amount">Starting amount</label>
+    <div class="money">
+      <span class="money-sign" aria-hidden="true">$</span>
+      <input id="edit-amount" type="text" inputmode="decimal" placeholder="0.00" aria-describedby="edit-msg">
+    </div>
+    <p id="edit-msg" class="msg" role="status" aria-live="polite"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-quiet" data-close>Cancel</button>
+      <button type="submit" class="btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="reset-dialog" aria-labelledby="reset-title">
+  <div class="dialog-body">
+    <h3 id="reset-title">Start over?</h3>
+    <p class="dialog-text">This clears your starting amount and every logged payment. It can't be undone.</p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-quiet" data-close>Keep my data</button>
+      <button type="button" id="reset-confirm" class="btn btn-warn">Start over</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ================= Basics ================= */
+  const KEY = 'debt-tracker:v1';
+  const MAX_CENTS = 1e11; // $1 billion ceiling keeps all the math in safe integers
+  const $ = (id) => document.getElementById(id);
+  const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
+  const motionOK = !mq('(prefers-reduced-motion: reduce)');
+  const finePointer = mq('(hover: hover) and (pointer: fine)');
+
+  const moneyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  const fmt = (cents) => moneyFmt.format(cents / 100);
+  const whenFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const dayFmt = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const validTime = (t) => Number.isFinite(t) && t > 0 && t < 8.64e15;
+
+  // Accepts "1,250.50", "$99", "12,50" (comma decimal) and ".75". Returns integer cents, or null.
+  function parseMoney(raw) {
+    let s = String(raw == null ? '' : raw).trim().replace(/[\s$]/g, '');
+    if (/^\d+,\d{1,2}$/.test(s)) s = s.replace(',', '.');
+    s = s.replace(/,/g, '');
+    if (!/^(\d+\.?\d{0,2}|\.\d{1,2})$/.test(s)) return null;
+    const [whole, frac = ''] = s.split('.');
+    const cents = Number(whole || '0') * 100 + Number((frac + '00').slice(0, 2));
+    return Number.isSafeInteger(cents) && cents > 0 && cents <= MAX_CENTS ? cents : null;
+  }
+
+  /* ================= Saving (localStorage) ================= */
+  const store = (() => {
+    try {
+      const probe = '__debt_tracker_probe__';
+      window.localStorage.setItem(probe, '1');
+      window.localStorage.removeItem(probe);
+      return window.localStorage;
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const blank = (sound = true) => ({ start: null, startedAt: null, payments: [], sound });
+
+  function load() {
+    if (!store) return blank();
+    let raw = null;
+    try {
+      raw = store.getItem(KEY);
+      if (!raw) return blank();
+      const s = JSON.parse(raw);
+      if (!s || !Array.isArray(s.payments)) throw new Error('Unexpected saved data');
+      const start = Number.isSafeInteger(s.start) && s.start > 0 ? s.start : null;
+      const payments = start
+        ? s.payments
+            .filter((p) => p && Number.isSafeInteger(p.cents) && p.cents > 0)
+            .map((p) => ({
+              id: String(p.id || uid()),
+              cents: p.cents,
+              at: validTime(Number(p.at)) ? Number(p.at) : Date.now()
+            }))
+        : [];
+      return {
+        start,
+        startedAt: validTime(Number(s.startedAt)) ? Number(s.startedAt) : null,
+        payments,
+        sound: s.sound !== false
+      };
+    } catch (e) {
+      // Keep a copy of anything unreadable instead of silently overwriting it.
+      if (raw) { try { store.setItem(KEY + ':backup', raw); } catch (_) { /* ignore */ } }
+      return blank();
+    }
+  }
+
+  function save() {
+    if (!store) return;
+    try {
+      store.setItem(KEY, JSON.stringify({ ...state, remaining: remaining() }));
+    } catch (e) {
+      $('storage-note').hidden = false;
+    }
+  }
+
+  let state = load();
+  const paidTotal = () => state.payments.reduce((sum, p) => sum + p.cents, 0);
+  const remaining = () => Math.max(0, (state.start || 0) - paidTotal());
+
+  /* ================= Sound (Web Audio, no files needed) ================= */
+  const sound = (() => {
+    let ac = null;
+    let out = null;
+
+    function ready() {
+      try {
+        if (!ac) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return false;
+          ac = new AC();
+          const comp = ac.createDynamicsCompressor();
+          comp.threshold.value = -16;
+          comp.knee.value = 20;
+          comp.ratio.value = 4;
+          out = ac.createGain();
+          out.gain.value = 0.9;
+          out.connect(comp);
+          comp.connect(ac.destination);
+        }
+        if (ac.state === 'suspended') {
+          const resumed = ac.resume();
+          if (resumed && resumed.catch) resumed.catch(() => {});
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function tone(freq, at, dur, vol, type = 'sine', attack = 0.006) {
+      const osc = ac.createOscillator();
+      const amp = ac.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, at);
+      amp.gain.setValueAtTime(0.0001, at);
+      amp.gain.exponentialRampToValueAtTime(vol, at + attack);
+      amp.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      osc.connect(amp);
+      amp.connect(out);
+      osc.start(at);
+      osc.stop(at + dur + 0.05);
+    }
+
+    // A soft two-note chime (A5 → E6) with a faint shimmer on top.
+    function ding() {
+      if (!ready()) return;
+      const t = ac.currentTime + 0.01;
+      tone(880.0, t, 0.2, 0.15, 'triangle');
+      tone(1318.51, t + 0.09, 1.2, 0.2);
+      tone(2637.02, t + 0.09, 0.5, 0.03);
+    }
+
+    // A rising arpeggio into a warm held chord, with a few twinkles.
+    function fanfare() {
+      if (!ready()) return;
+      const t = ac.currentTime + 0.02;
+      const arp = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+      arp.forEach((f, i) => tone(f, t + i * 0.09, 0.55, 0.15, 'triangle'));
+      const c = t + arp.length * 0.09 + 0.04;
+      tone(130.81, c, 2.6, 0.12);
+      [261.63, 523.25, 659.25, 783.99, 1046.5].forEach((f) => tone(f, c, 2.6, 0.075, 'triangle', 0.03));
+      const twinkles = [2093.0, 2349.32, 2637.02, 3135.96, 3520.0];
+      for (let i = 0; i < 12; i++) {
+        const f = twinkles[Math.floor(Math.random() * twinkles.length)];
+        tone(f, c + 0.15 + i * 0.11 + Math.random() * 0.04, 0.3, 0.025 + Math.random() * 0.02);
+      }
+    }
+
+    return {
+      unlock: ready,
+      ding: () => { try { ding(); } catch (e) { /* sound is a nice-to-have */ } },
+      fanfare: () => { try { fanfare(); } catch (e) { /* sound is a nice-to-have */ } }
+    };
+  })();
+
+  /* ================= Confetti (canvas, no library) ================= */
+  const confetti = (() => {
+    const canvas = $('confetti');
+    const g = canvas.getContext ? canvas.getContext('2d') : null;
+    const colors = ['#4e806e', '#86bfa9', '#f1c56a', '#ee9b7d', '#a99ce0', '#7fb4d6', '#f7e3a1'];
+    const GRAVITY = 0.3;
+    let parts = [];
+    let raf = 0;
+    let last = 0;
+    let endAt = 0;
+    let waveTimer = 0;
+    let wavePending = false;
+    let w = 0;
+    let h = 0;
+
+    function size() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // Two cannons fire from the bottom corners, up and inward.
+    function cannon(n, fromLeft) {
+      const reach = Math.sqrt(2 * GRAVITY * h * 0.9);
+      const spread = Math.max(0.4, Math.min(1, w / 1100));
+      for (let i = 0; i < n; i++) {
+        const angle = ((fromLeft ? -63 : -117) + (Math.random() - 0.5) * 34) * (Math.PI / 180);
+        const speed = reach * (0.5 + Math.random() * 0.6);
+        parts.push({
+          x: fromLeft ? -10 : w + 10,
+          y: h * 0.9,
+          vx: Math.cos(angle) * speed * spread,
+          vy: Math.sin(angle) * speed,
+          term: 2.2 + Math.random() * 1.6,
+          s: 6 + Math.random() * 7,
+          r: 0.4 + Math.random() * 0.5,
+          rot: Math.random() * Math.PI * 2,
+          vrot: (Math.random() - 0.5) * 0.24,
+          flip: Math.random() * Math.PI * 2,
+          vflip: 0.07 + Math.random() * 0.12,
+          sway: Math.random() * Math.PI * 2,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          round: Math.random() < 0.22,
+          wait: Math.random() * 14
+        });
+      }
+    }
+
+    function burst() {
+      if (!g) return;
+      size();
+      const n = !motionOK ? 40 : w < 600 ? 130 : 200;
+      cannon(n / 2, true);
+      cannon(n / 2, false);
+      clearTimeout(waveTimer);
+      wavePending = motionOK;
+      if (motionOK) {
+        waveTimer = setTimeout(() => {
+          wavePending = false;
+          cannon(n / 4, true);
+          cannon(n / 4, false);
+        }, 420);
+      }
+      endAt = performance.now() + 7500;
+      canvas.classList.add('on');
+      if (!raf) {
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+    }
+
+    function tick(now) {
+      const dt = Math.min(3, Math.max(0, (now - last) / 16.667));
+      last = now;
+      const timeLeft = endAt - now;
+      const alpha = timeLeft < 1400 ? Math.max(0, timeLeft / 1400) : 1;
+      g.clearRect(0, 0, w, h);
+      for (const p of parts) {
+        if (p.wait > 0) { p.wait -= dt; continue; }
+        p.vy += GRAVITY * dt;
+        if (p.vy > p.term) p.vy = p.term + (p.vy - p.term) * Math.pow(0.75, dt); // flutter down gently
+        p.vx *= Math.pow(0.988, dt);
+        p.sway += 0.06 * dt;
+        p.x += (p.vx + Math.sin(p.sway) * 0.7) * dt;
+        p.y += p.vy * dt;
+        p.rot += p.vrot * dt;
+        p.flip += p.vflip * dt;
+        if (p.y > h + 30) continue;
+        const squash = Math.abs(Math.cos(p.flip));
+        g.save();
+        g.globalAlpha = alpha;
+        g.translate(p.x, p.y);
+        g.rotate(p.rot);
+        g.fillStyle = p.color;
+        if (p.round) {
+          g.beginPath();
+          g.ellipse(0, 0, p.s * 0.4, p.s * 0.4 * squash + 0.5, 0, 0, Math.PI * 2);
+          g.fill();
+        } else {
+          const ph = p.s * p.r * squash + 0.6;
+          g.fillRect(-p.s / 2, -ph / 2, p.s, ph);
+        }
+        g.restore();
+      }
+      parts = parts.filter((p) => p.wait > 0 || p.y <= h + 30);
+      if (timeLeft <= 0 || (!parts.length && !wavePending)) { stop(); return; }
+      raf = requestAnimationFrame(tick);
+    }
+
+    function stop() {
+      cancelAnimationFrame(raf);
+      clearTimeout(waveTimer);
+      raf = 0;
+      wavePending = false;
+      parts = [];
+      if (g) g.clearRect(0, 0, w, h);
+      canvas.classList.remove('on');
+    }
+
+    return { burst, stop, resize: () => { if (raf) size(); } };
+  })();
+
+  /* ================= The big number ================= */
+  const bigEl = $('big');
+  const measurer = document.createElement('span');
+  measurer.className = 'big';
+  measurer.setAttribute('aria-hidden', 'true');
+  measurer.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;display:inline-block;';
+  document.body.appendChild(measurer);
+
+  let shown = 0;
+  let countRaf = 0;
+
+  function showNumber(cents) {
+    shown = cents;
+    bigEl.textContent = fmt(cents);
+  }
+
+  // Count down smoothly from the old total to the new one.
+  function countTo(target) {
+    cancelAnimationFrame(countRaf);
+    const from = shown;
+    if (!motionOK || from === target) { showNumber(target); return; }
+    const t0 = performance.now();
+    const duration = 850;
+    const step = (now) => {
+      const t = Math.min(1, Math.max(0, (now - t0) / duration));
+      const eased = 1 - Math.pow(1 - t, 3);
+      showNumber(Math.round(from + (target - from) * eased));
+      if (t < 1) countRaf = requestAnimationFrame(step);
+    };
+    countRaf = requestAnimationFrame(step);
+  }
+
+  // Size the number so the largest value it will show (the starting total) fits on one line.
+  function fitBig() {
+    const avail = bigEl.clientWidth;
+    if (!avail) return;
+    const max = Math.max(44, Math.min(112, window.innerWidth * 0.17));
+    measurer.style.fontSize = max + 'px';
+    measurer.textContent = fmt(Math.max(state.start || 0, shown));
+    const width = measurer.getBoundingClientRect().width;
+    bigEl.style.fontSize = (width > avail ? Math.floor((max * avail) / width) : max) + 'px';
+  }
+
+  function nudge(cls) {
+    if (!motionOK) return;
+    bigEl.classList.remove('bump', 'pop');
+    void bigEl.offsetWidth; // restart the animation
+    bigEl.classList.add(cls);
+  }
+  bigEl.addEventListener('animationend', () => bigEl.classList.remove('bump', 'pop'));
+
+  /* ================= Messages ================= */
+  const msgTimers = {};
+  function say(id, text, kind = '') {
+    const el = $(id);
+    el.textContent = text;
+    el.dataset.kind = kind;
+    clearTimeout(msgTimers[id]);
+    if (kind === 'ok') {
+      msgTimers[id] = setTimeout(() => { el.textContent = ''; el.dataset.kind = ''; }, 5000);
+    }
+  }
+
+  function announce(text) {
+    const el = $('sr-status');
+    el.textContent = '';
+    setTimeout(() => { el.textContent = text; }, 60);
+  }
+
+  const cheers = [
+    (a) => `Nice. ${a} down.`,
+    (a) => `${a} closer.`,
+    (a) => `Logged. That's ${a} lighter.`,
+    (a) => `Another ${a} gone.`,
+    (a) => `Steady progress: ${a} paid.`
+  ];
+  let cheerIndex = Math.floor(Math.random() * cheers.length);
+  const cheer = (cents) => cheers[cheerIndex++ % cheers.length](fmt(cents));
+
+  /* ================= Rendering ================= */
+  function render({ animate = false, flashId = null } = {}) {
+    const ready = Number.isSafeInteger(state.start) && state.start > 0;
+    $('setup').hidden = ready;
+    $('tracker').hidden = !ready;
+    $('sound-toggle').textContent = state.sound ? 'Sound: on' : 'Sound: off';
+    if (!ready) {
+      document.body.classList.remove('is-done');
+      document.title = 'Debt Tracker';
+      return;
+    }
+
+    const left = remaining();
+    const done = left === 0;
+    if (animate) {
+      countTo(left);
+    } else {
+      cancelAnimationFrame(countRaf);
+      showNumber(left);
+    }
+    fitBig();
+    renderProgress();
+    renderHistory(flashId);
+
+    document.body.classList.toggle('is-done', done);
+    $('big-label').textContent = done ? 'Debt free' : 'Left to pay';
+    $('pay-form').hidden = done;
+    $('done').hidden = !done;
+    if (done) {
+      const since = state.startedAt ? ` since ${dayFmt.format(state.startedAt)}` : '';
+      $('done-text').textContent = `You paid off ${fmt(state.start)} in ${plural(state.payments.length, 'payment')}${since}.`;
+    }
+    document.title = done ? 'Debt free · Debt Tracker' : `${fmt(left)} left · Debt Tracker`;
+  }
+
+  function renderProgress() {
+    const start = state.start || 0;
+    const paid = Math.min(paidTotal(), start);
+    const pct = start ? (paid / start) * 100 : 0;
+    const label = pct > 0 && pct < 1 ? '<1%' : `${Math.floor(pct)}%`;
+    $('bar').style.width = pct + '%';
+    $('progress').setAttribute('aria-valuenow', String(Math.floor(pct)));
+    $('progress-text').textContent = `${fmt(paid)} of ${fmt(start)} paid off · ${label}`;
+  }
+
+  function renderHistory(flashId) {
+    const list = $('history');
+    list.textContent = '';
+    const items = state.payments.slice().reverse(); // newest first
+    for (const p of items) list.appendChild(historyItem(p, p.id === flashId));
+    $('history-empty').hidden = items.length > 0;
+    $('history-count').textContent = items.length ? plural(items.length, 'payment') : '';
+  }
+
+  function historyItem(p, flash) {
+    const li = document.createElement('li');
+    li.className = flash && motionOK ? 'item flash' : 'item';
+    li.dataset.id = p.id;
+
+    const main = document.createElement('div');
+    main.className = 'item-main';
+    const amount = document.createElement('span');
+    amount.className = 'item-amt';
+    amount.textContent = '−' + fmt(p.cents);
+    const when = document.createElement('time');
+    when.className = 'item-when';
+    when.dateTime = new Date(p.at).toISOString();
+    when.textContent = whenFmt.format(p.at);
+    main.append(amount, when);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'item-x';
+    remove.textContent = '×';
+    remove.title = 'Remove this payment';
+    remove.setAttribute('aria-label', `Remove ${fmt(p.cents)} payment from ${whenFmt.format(p.at)}`);
+    remove.addEventListener('click', () => askRemove(li, p));
+
+    li.append(main, remove);
+    return li;
+  }
+
+  // Inline "are you sure?" so a stray click never deletes anything.
+  function askRemove(li, p) {
+    li.className = 'item confirming';
+    li.textContent = '';
+    const question = document.createElement('span');
+    question.className = 'item-q';
+    question.textContent = `Remove this ${fmt(p.cents)} payment?`;
+    const actions = document.createElement('div');
+    actions.className = 'item-actions';
+    const keep = makeButton('Keep', 'btn btn-small btn-quiet', () => { renderHistory(); focusRemoveButton(p.id); });
+    const drop = makeButton('Remove', 'btn btn-small btn-warn', () => removePayment(p.id));
+    actions.append(keep, drop);
+    li.append(question, actions);
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { renderHistory(); focusRemoveButton(p.id); }
+    });
+    keep.focus();
+  }
+
+  function focusRemoveButton(id) {
+    for (const li of $('history').children) {
+      if (li.dataset.id === id) { li.querySelector('.item-x').focus(); return; }
+    }
+  }
+
+  function makeButton(label, className, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = className;
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  /* ================= Actions ================= */
+  function celebrate() {
+    if (state.sound) sound.fanfare();
+    confetti.burst();
+  }
+
+  function logPayment(entered) {
+    const before = remaining();
+    if (before === 0) return;
+    const cents = Math.min(entered, before);
+    const capped = entered > before;
+    const payment = { id: uid(), cents, at: Date.now() };
+    state.payments.push(payment);
+    save();
+    render({ animate: true, flashId: payment.id });
+
+    const left = remaining();
+    if (left === 0) {
+      nudge('pop');
+      celebrate();
+      say('pay-msg', capped ? `That was more than what was left, so it's logged as ${fmt(cents)}.` : '', capped ? 'ok' : '');
+      announce('Paid off. You are debt free!');
+      $('done').focus({ preventScroll: true });
+    } else {
+      nudge('bump');
+      if (state.sound) sound.ding();
+      say('pay-msg', cheer(cents), 'ok');
+      announce(`${fmt(left)} left to pay.`);
+    }
+  }
+
+  function removePayment(id) {
+    const wasDone = remaining() === 0;
+    state.payments = state.payments.filter((p) => p.id !== id);
+    save();
+    render({ animate: true });
+    say('pay-msg', wasDone ? 'Payment removed. Back to tracking.' : 'Payment removed.', 'ok');
+    announce(`Payment removed. ${fmt(remaining())} left to pay.`);
+    $('history-title').focus({ preventScroll: true });
+  }
+
+  /* ================= Wiring ================= */
+  $('setup-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('setup-amount');
+    const cents = parseMoney(input.value);
+    if (cents === null) {
+      input.setAttribute('aria-invalid', 'true');
+      say('setup-msg', 'Enter your total, like 12500 or 12,500.00.', 'error');
+      input.focus();
+      return;
+    }
+    input.removeAttribute('aria-invalid');
+    input.value = '';
+    say('setup-msg', '');
+    if (state.sound) sound.unlock(); // lets the first payment's ding play right away
+    state = { start: cents, startedAt: Date.now(), payments: [], sound: state.sound };
+    save();
+    render();
+    announce(`Tracking ${fmt(cents)}. Log a payment whenever you make one.`);
+    $('pay-amount').focus();
+  });
+
+  $('pay-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('pay-amount');
+    const cents = parseMoney(input.value);
+    if (cents === null) {
+      input.setAttribute('aria-invalid', 'true');
+      say('pay-msg', 'Enter a payment amount, like 250 or 99.95.', 'error');
+      input.focus();
+      return;
+    }
+    input.removeAttribute('aria-invalid');
+    input.value = '';
+    logPayment(cents);
+  });
+
+  $('celebrate').addEventListener('click', () => { nudge('pop'); celebrate(); });
+
+  $('sound-toggle').addEventListener('click', () => {
+    state.sound = !state.sound;
+    save();
+    $('sound-toggle').textContent = state.sound ? 'Sound: on' : 'Sound: off';
+    if (state.sound) sound.ding(); // a quick preview
+  });
+
+  // Edit starting amount
+  const editDialog = $('edit-dialog');
+  $('edit-start').addEventListener('click', () => {
+    const input = $('edit-amount');
+    input.value = (state.start / 100).toFixed(2);
+    input.removeAttribute('aria-invalid');
+    say('edit-msg', '');
+    openDialog(editDialog);
+    input.focus();
+    input.select();
+  });
+
+  $('edit-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('edit-amount');
+    const cents = parseMoney(input.value);
+    const paid = paidTotal();
+    if (cents === null) {
+      input.setAttribute('aria-invalid', 'true');
+      say('edit-msg', 'Enter an amount like 12500 or 12,500.00.', 'error');
+      return;
+    }
+    if (cents < paid) {
+      input.setAttribute('aria-invalid', 'true');
+      say('edit-msg', `You've already paid ${fmt(paid)}, so the total can't be lower than that.`, 'error');
+      return;
+    }
+    const wasLeft = remaining();
+    state.start = cents;
+    save();
+    closeDialog(editDialog);
+    render({ animate: true });
+    const left = remaining();
+    if (wasLeft > 0 && left === 0) {
+      nudge('pop');
+      celebrate();
+    }
+    say('pay-msg', `Starting amount updated to ${fmt(cents)}.`, 'ok');
+    announce(`Starting amount is now ${fmt(cents)}. ${fmt(left)} left to pay.`);
+  });
+
+  // Start over
+  const resetDialog = $('reset-dialog');
+  $('reset').addEventListener('click', () => openDialog(resetDialog));
+  $('new-goal').addEventListener('click', () => openDialog(resetDialog));
+  $('reset-confirm').addEventListener('click', () => {
+    closeDialog(resetDialog);
+    confetti.stop();
+    state = blank(state.sound);
+    save();
+    say('pay-msg', '');
+    render();
+    $('setup-amount').focus();
+  });
+
+  // Dialog helpers (with a fallback for older browsers)
+  function openDialog(d) {
+    if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); }
+    else d.setAttribute('open', '');
+  }
+  function closeDialog(d) {
+    if (typeof d.close === 'function') d.close();
+    else d.removeAttribute('open');
+  }
+  document.querySelectorAll('dialog').forEach((d) => {
+    d.addEventListener('click', (e) => { if (e.target === d) closeDialog(d); }); // click outside to close
+    d.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closeDialog(d)));
+  });
+
+  // Clear an error as soon as typing starts again
+  [['setup-amount', 'setup-msg'], ['pay-amount', 'pay-msg'], ['edit-amount', 'edit-msg']].forEach(([inputId, msgId]) => {
+    $(inputId).addEventListener('input', (e) => {
+      if (e.target.getAttribute('aria-invalid') === 'true') {
+        e.target.removeAttribute('aria-invalid');
+        say(msgId, '');
+      }
+    });
+  });
+
+  // Keep several open tabs in sync
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY) return;
+    state = load();
+    render();
+  });
+
+  let fitRaf = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(fitRaf);
+    fitRaf = requestAnimationFrame(() => {
+      if (!$('tracker').hidden) fitBig();
+      confetti.resize();
+    });
+  });
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { if (!$('tracker').hidden) fitBig(); });
+  }
+
+  /* ================= Start ================= */
+  if (!store) $('storage-note').hidden = false;
+  render();
+  if (finePointer) {
+    if (!$('setup').hidden) $('setup-amount').focus();
+    else if (!$('pay-form').hidden) $('pay-amount').focus();
+  }
+})();
+</script>
+</body>
+</html>
